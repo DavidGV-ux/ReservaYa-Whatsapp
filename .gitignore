@@ -1,0 +1,21 @@
+# Dependencias y compilados
+node_modules/
+dist/
+coverage/
+.serverless/
+
+# Variables de entorno y credenciales (RNF-27 / B-05)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+secrets.json
+credentials.json
+
+# Logs y sistema operativo
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db

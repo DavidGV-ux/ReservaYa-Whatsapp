@@ -1,0 +1,28 @@
+name: CI ReservaYa-Whatsapp
+
+on:
+  pull_request:
+    branches: [main, Fernando]
+  push:
+    branches: [main, Fernando]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v4
+
+      - name: Instalar Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Instalar dependencias
+        run: npm install
+
+      - name: Verificar sintaxis y tipos (Lint / Typecheck)
+        run: npm run typecheck
+
+      - name: Ejecutar pruebas unitarias y de pipeline
+        run: npm test

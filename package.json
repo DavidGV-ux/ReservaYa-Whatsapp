@@ -1,0 +1,29 @@
+{
+  "name": "reservaya-whatsapp",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Servicio conversacional de WhatsApp IA para ReservaYa (Meta Webhook -> SQS -> Groq/Gemini AI -> Back-Reserva-Ya)",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "zod": "^4.6.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.20.2",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.0"
+  }
+}
