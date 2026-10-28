@@ -1,0 +1,161 @@
+service: whatsapp-chatbot
+
+useDotenv: true
+
+# Configuración de stages - permite múltiples versiones desplegadas
+# Usa: serverless deploy --stage v2 (o el nombre que quieras)
+# Por defecto usa 'dev' si no se especifica
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: us-east-1
+  memorySize: 1024
+  timeout: 300
+  architecture: arm64 # Cold starts más rápidos y 20% más barato (dependencias 100% JS)
+  logRetentionInDays: 14 # Practica: retener logs 14 días (costo vs depuración)
+  tracing: # Observabilidad: trazas X-Ray por invocación y por request del API GW
+    lambda: true
+    apiGateway: true
+  stage: ${opt:stage, 'dev'}  # Usa el stage del comando o 'dev' por defecto
+  stackTags:
+    service: whatsapp-chatbot
+    managed-by: serverless
+    environment: ${opt:stage, 'dev'}
+  httpApi:
+    # CORS lo maneja el middleware de Express dentro del handler (validado por tests).
+    # Así evitamos headers duplicados con el gateway y podemos verificar la política.
+    cors: false # Habilitar CORS en el API Gateway para httpApi
+
+  environment:
+    NODE_ENV: production
+    # ⚠️ ADMIN_SECRET debe estar SIEMPRE definido en el .env.
+    # Sin fallback: si falta, los endpoints de administración quedan bloqueados.
+    ADMIN_SECRET: ${env:ADMIN_SECRET}
+    REDIS_ENABLED: ${env:REDIS_ENABLED, 'false'}
+    REDIS_HOST: ${env:REDIS_HOST, ''}
+    REDIS_PORT: ${env:REDIS_PORT, '6379'}
+    REDIS_PASSWORD: ${env:REDIS_PASSWORD, ''}
+    REDIS_TLS: ${env:REDIS_TLS, 'false'}
+
+    WHATSAPP_API_URL: ${env:WHATSAPP_API_URL}
+    WHATSAPP_PHONE_ID: ${env:WHATSAPP_PHONE_ID}
+    WHATSAPP_TOKEN: ${env:WHATSAPP_TOKEN}
+    WHATSAPP_VERIFY_TOKEN: ${env:WHATSAPP_VERIFY_TOKEN}
+    # App Secret de Meta para validar la firma X-Hub-Signature-256 del webhook
+    WHATSAPP_APP_SECRET: ${env:WHATSAPP_APP_SECRET, ''}
+
+    GROQ_API_KEY: ${env:GROQ_API_KEY}
+    GROQ_MODEL: ${env:GROQ_MODEL, 'llama-3.3-70b-versatile'}
+
+    SUPABASE_URL: ${env:SUPABASE_URL}
+    SUPABASE_KEY: ${env:SUPABASE_KEY}
+    # JWT Secret de Supabase (verificación offline de tokens de Auth).
+    # Sin él, los endpoints protegidos de usuario quedan BLOQUEADOS (fail-closed).
+    SUPABASE_JWT_SECRET: ${env:SUPABASE_JWT_SECRET, ''}
+
+    # Orígenes permitidos de CORS (separados por coma). Por defecto: CloudFront + localhost.
+    CORS_ORIGINS: ${env:CORS_ORIGINS, 'https://d133uvy2su9xyr.cloudfront.net,http://localhost:4200,http://localhost:3000,https://localhost:4200'}
+
+    MAKE_WEBHOOK_URL: ${env:MAKE_WEBHOOK_URL}
+
+# Enviamos a AWS solo lo que se ejecuta: sin sourcemaps, sin código fuente de
+# librerías, sin .d.ts ni docs de paquetes. Reduce el zip (~-55%) y el cold start.
+package:
+  patterns:
+    - '!node_modules/**/*.map'
+    - '!node_modules/**/**/*.ts'
+    - '!node_modules/**/**/*.tsx'
+    - '!node_modules/**/*.d.ts'
+    - '!node_modules/**/*.d.cts'
+    - '!node_modules/**/*.d.mts'
+    - '!node_modules/**/README*'
+    - '!node_modules/**/LICENSE*'
+    - '!node_modules/**/CHANGELOG*'
+    - '!node_modules/.bin/**'
+    - '!**/package-lock.json'
+    - '!**/.package-lock.json'
+    - '!package-lock.json'
+
+functions:
+  # API principal: responde al webhook de WhatsApp y a los endpoints del frontend.
+  api:
+    handler: lambda.handler
+    description: API principal (webhook WhatsApp + endpoints web/auth/admin)
+    timeout: 29
+    events:
+      - httpApi:
+          path: /{proxy+}
+          method: ANY
+      - httpApi:
+          path: /
+          method: ANY
+
+  dailyTips:
+    handler: lambdaDailyTips.handler
+    description: Tips financieros diarios
+    timeout: 300
+    memorySize: 512  # Reducido para optimizar costos
+    events:
+      - schedule:
+          rate: cron(0 14 * * ? *)  # Ejecuta todos los días a las 9 AM horario Colombia
+          enabled: true
+
+  monthlyFeedback:
+    handler: lambdaMonthlyFeedback.handler
+    description: Feedback financiero mensual
+    timeout: 300
+    memorySize: 512  # Optimizado para plan gratuito
+    events:
+      - schedule:
+          rate: cron(0 10 1 * ? *)  # Ejecuta el día 1 de cada mes a las 5 AM horario Colombia
+          enabled: true
+
+  # Recordatorios predefinidos - múltiples horarios
+  remindersMorning:
+    handler: lambdaReminders.handler
+    description: Recordatorios predefinidos
+    timeout: 300
+    memorySize: 512
+    events:
+      - schedule:
+          rate: cron(0 14 * * ? *)  # 9:00 AM Colombia (14:00 UTC)
+          enabled: true
+
+  remindersLunch:
+    handler: lambdaReminders.handler
+    timeout: 300
+    memorySize: 512
+    events:
+      - schedule:
+          rate: cron(0 17 * * ? *)  # 12:00 PM Colombia (17:00 UTC)
+          enabled: true
+
+  remindersShopping:
+    handler: lambdaReminders.handler
+    timeout: 300
+    memorySize: 512
+    events:
+      - schedule:
+          rate: cron(0 19 * * ? *)  # 2:00 PM Colombia (19:00 UTC)
+          enabled: true
+
+  remindersDinner:
+    handler: lambdaReminders.handler
+    timeout: 300
+    memorySize: 512
+    events:
+      - schedule:
+          rate: cron(0 23 * * ? *)  # 6:00 PM Colombia (23:00 UTC)
+          enabled: true
+
+  remindersReview:
+    handler: lambdaReminders.handler
+    timeout: 300
+    memorySize: 512
+    events:
+      - schedule:
+          rate: cron(0 1 * * ? *)  # 8:00 PM Colombia (01:00 UTC día siguiente)
+          enabled: true
+
+# No plugins, se elimina serverless-offline para evitar errores

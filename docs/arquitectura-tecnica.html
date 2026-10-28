@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arquitectura Técnica - Fyn</title>
+    <style>
+        :root {
+            --primary: #6f42c1;
+            --primary-light: #f3f0ff;
+            --secondary: #007bff;
+            --dark: #212529;
+            --light: #f8f9fa;
+            --border: #e9ecef;
+            --text-muted: #6c757d;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--dark);
+            margin: 0;
+            padding: 0;
+            background-color: #f4f7f6;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 40px auto;
+            background: white;
+            padding: 50px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+        }
+
+        header {
+            border-bottom: 2px solid var(--primary-light);
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            color: var(--primary);
+            margin: 0;
+            font-size: 2.2em;
+        }
+
+        .version {
+            background: var(--primary-light);
+            color: var(--primary);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+
+        h2 {
+            color: var(--dark);
+            border-left: 4px solid var(--primary);
+            padding-left: 15px;
+            margin-top: 40px;
+            font-size: 1.5em;
+        }
+
+        h3 {
+            color: var(--secondary);
+            margin-top: 25px;
+        }
+
+        p {
+            margin-bottom: 15px;
+        }
+
+        .tech-stack {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .tech-card {
+            background: var(--light);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        .tech-card strong {
+            display: block;
+            color: var(--primary);
+            margin-bottom: 8px;
+            font-size: 1.1em;
+        }
+
+        .diagram-box {
+            background: #fff;
+            border: 2px dashed var(--border);
+            padding: 30px;
+            border-radius: 8px;
+            text-align: center;
+            margin: 30px 0;
+        }
+
+        code {
+            background: #f1f1f1;
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9em;
+        }
+
+        ul {
+            padding-left: 20px;
+        }
+
+        li {
+            margin-bottom: 10px;
+        }
+
+        .footer {
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+            font-size: 0.85em;
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        .btn-print {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(111, 66, 193, 0.3);
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        @media print {
+            .btn-print { display: none; }
+            body { background: white; }
+            .container { box-shadow: none; margin: 0; width: 100%; max-width: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>Arquitectura Técnica: Fyn</h1>
+            <span class="version">v2.0 - Serverless</span>
+        </header>
+
+        <section id="introduccion">
+            <h2>1. Introducción</h2>
+            <p>Fyn es una plataforma de gestión financiera inteligente que utiliza Inteligencia Artificial para asistir a los usuarios en el control de sus gastos, presupuestos y salud financiera a través de interfaces conversacionales (WhatsApp) y un panel web interactivo.</p>
+        </section>
+
+        <section id="stack-tecnologico">
+            <h2>2. Stack Tecnológico</h2>
+            <div class="tech-stack">
+                <div class="tech-card">
+                    <strong>Backend</strong>
+                    Node.js ejecutado en un entorno Serverless (AWS Lambda). Escalabilidad automática y pago por uso.
+                </div>
+                <div class="tech-card">
+                    <strong>Frontend</strong>
+                    Angular (v20+) desplegado en AWS S3 + CloudFront para una entrega de contenido global rápida.
+                </div>
+                <div class="tech-card">
+                    <strong>Base de Datos</strong>
+                    Supabase (PostgreSQL) para almacenamiento relacional y gestión de autenticación de usuarios.
+                </div>
+                <div class="tech-card">
+                    <strong>Inteligencia Artificial</strong>
+                    OpenAI y Groq SDK para el procesamiento de lenguaje natural y lógica de coach financiero.
+                </div>
+                <div class="tech-card">
+                    <strong>Integraciones</strong>
+                    WhatsApp Business API para la interfaz de chat y Make.com para flujos de automatización externos.
+                </div>
+                <div class="tech-card">
+                    <strong>Caché</strong>
+                    Redis (opcional) y Node-cache para optimizar tiempos de respuesta y manejo de estados.
+                </div>
+            </div>
+        </section>
+
+        <section id="arquitectura">
+            <h2>3. Arquitectura de Sistema</h2>
+            <p>La arquitectura de Fyn está diseñada bajo el paradigma de <strong>Microservicios Serverless</strong>, lo que permite manejar picos de tráfico sin necesidad de administrar servidores físicos.</p>
+            
+            <div class="diagram-box">
+                <p><strong>[ Flujo de Datos ]</strong></p>
+                <p>Usuario (WhatsApp) &harr; WhatsApp API &harr; AWS Lambda (Node.js) &harr; Supabase / IA</p>
+                <p>Usuario (Web) &harr; CloudFront (Angular) &harr; AWS Lambda / Supabase</p>
+            </div>
+
+            <h3>Componentes Principales:</h3>
+            <ul>
+                <li><strong>Lambda API:</strong> Maneja los webhooks de WhatsApp y las peticiones del frontend. Utiliza <code>serverless-http</code> para adaptar Express a Lambda.</li>
+                <li><strong>Cron Jobs (Lambdas):</strong> Funciones programadas para tareas automáticas como <code>dailyTips</code> (9 AM COL) y <code>monthlyFeedback</code> (día 1 de cada mes).</li>
+                <li><strong>Servicios (Business Logic):</strong> Lógica encapsulada en <code>Services/</code> para suscripciones, métricas, perfiles y procesamiento de IA.</li>
+            </ul>
+        </section>
+
+        <section id="seguridad">
+            <h2>4. Seguridad y Autenticación</h2>
+            <ul>
+                <li><strong>JWT (Supabase Auth):</strong> Todas las comunicaciones del frontend están protegidas mediante tokens de sesión.</li>
+                <li><strong>Admin Secret:</strong> El panel de administración utiliza un secreto robusto definido en variables de entorno para proteger endpoints críticos (MRR, licencias).</li>
+                <li><strong>Variables de Entorno:</strong> Gestión estricta de credenciales mediante AWS Lambda Environment Variables, evitando el almacenamiento de claves en el código fuente.</li>
+            </ul>
+        </section>
+
+        <section id="escalabilidad">
+            <h2>5. Escalabilidad y Rendimiento</h2>
+            <p>El sistema aprovecha la infraestructura de AWS para garantizar alta disponibilidad:</p>
+            <ul>
+                <li><strong>AWS CloudFront:</strong> CDN que reduce la latencia del frontend y protege contra ataques básicos de red.</li>
+                <li><strong>Lambda Concurrency:</strong> Capacidad para procesar cientos de mensajes simultáneamente gracias al auto-escalado de AWS.</li>
+                <li><strong>Supabase Pooling:</strong> Conexión optimizada a PostgreSQL para manejar ráfagas de escrituras de transacciones.</li>
+            </ul>
+        </section>
+
+        <div class="footer">
+            &copy; 2026 Fyn Financial Technology. Documentación Técnica Confidencial.
+        </div>
+    </div>
+
+    <button class="btn-print" onclick="window.print()">
+        <span>🖨️</span> Imprimir / Guardar PDF
+    </button>
+
+</body>
+</html>

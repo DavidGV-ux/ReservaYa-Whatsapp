@@ -1,0 +1,41 @@
+{
+  "name": "whatsapp-chatbot",
+  "version": "2.0.0-lambda",
+  "description": "Chatbot WhatsApp con IA para AWS Lambda",
+  "main": "lambda.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js",
+    "test": "npm run test:security",
+    "test:security": "node tests/security-verification.js",
+    "package": "serverless package --stage dev",
+    "deploy": "serverless deploy",
+    "deploy:dev": "serverless deploy --stage dev",
+    "deploy:prod": "serverless deploy --stage prod",
+    "info:dev": "serverless info --stage dev",
+    "info:prod": "serverless info --stage prod",
+    "logs": "serverless logs -f api --tail",
+    "logs:dev": "serverless logs -f api --stage dev --tail",
+    "logs:prod": "serverless logs -f api --stage prod --tail",
+    "remove:dev": "serverless remove --stage dev",
+    "remove:prod": "serverless remove --stage prod"
+  },
+  "engines": {
+    "node": "20.x",
+    "npm": "10.x"
+  },
+  "dependencies": {
+    "@supabase/postgrest-js": "^2.89.0",
+    "axios": "^1.6.0",
+    "body-parser": "^1.20.2",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "ioredis": "^5.8.2",
+    "node-cache": "^5.1.2",
+    "serverless-http": "^3.2.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1",
+    "serverless": "^3.40.0"
+  }
+}
