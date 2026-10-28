@@ -71,9 +71,9 @@ export class WhatsappBotService {
   }
 
   async processSingleJob(job: IncomingWhatsappJob): Promise<WhatsappBotPipelineResult> {
-    // 1. Consultar identidad del teléfono en Back-Reserva-Ya (/api/whatsapp/lookup)
+    // 1. Consultar identidad del teléfono en Back-Reserva-Ya (/api/public/whatsapp/lookup)
     const lookupRes = await this.fetchFn(
-      `${this.baseUrl}/api/whatsapp/lookup?phone=${encodeURIComponent(job.fromPhone)}`,
+      `${this.baseUrl}/api/public/whatsapp/lookup?phone=${encodeURIComponent(job.fromPhone)}`,
       {
         headers: this.deps.whatsappBotSecret
           ? { 'x-whatsapp-secret': this.deps.whatsappBotSecret }
