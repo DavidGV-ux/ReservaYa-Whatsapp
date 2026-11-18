@@ -42,8 +42,13 @@ provider:
     WHATSAPP_PHONE_ID: ${env:WHATSAPP_PHONE_ID}
     WHATSAPP_TOKEN: ${env:WHATSAPP_TOKEN}
     WHATSAPP_VERIFY_TOKEN: ${env:WHATSAPP_VERIFY_TOKEN}
-    # App Secret de Meta para validar la firma X-Hub-Signature-256 del webhook
-    WHATSAPP_APP_SECRET: ${env:WHATSAPP_APP_SECRET, ''}
+    # App Secret de Meta para validar la firma X-Hub-Signature-256 del webhook.
+    # Sin fallback: el webhook rechaza todas las firmas (fail-closed) si falta.
+    WHATSAPP_APP_SECRET: ${env:WHATSAPP_APP_SECRET}
+    # Misma app de Meta que ReservaYa: aceptar también su secret de rotación.
+    WHATSAPP_APP_SECRET_ALT: ${env:WHATSAPP_APP_SECRET_ALT}
+    # Compatibilidad: ReservaYa debe desplegarse con el mismo valor.
+    INTERNAL_SERVICE_SECRET: ${env:INTERNAL_SERVICE_SECRET}
 
     GROQ_API_KEY: ${env:GROQ_API_KEY}
     GROQ_MODEL: ${env:GROQ_MODEL, 'llama-3.3-70b-versatile'}
