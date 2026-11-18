@@ -9,6 +9,11 @@ const assert = require('assert');
 const crypto = require('crypto');
 const { invoke, sign, signJwt, setFixture, getFixture, ROOT } = require('./helpers/aws-harness');
 
+// NOTA: esta copia del bot es antigua. El FYN desplegado (whatsapp-chatbot-prod)
+// se construye desde ~/Documents/FYN/FYN, donde están los mismos fixes.
+// Segundo App Secret de la misma app de Meta (rotación), como en ReservaYa.
+process.env.WHATSAPP_APP_SECRET_ALT = 'test_app_secret_alt';
+
 let passed = 0;
 let failed = 0;
 const failures = [];
@@ -83,6 +88,15 @@ async function run() {
     body: payload,
   });
   check('POST /webhook con firma válida -> 200', r.statusCode === 200, `status=${r.statusCode}`);
+
+  // 1.4b Rotación: la misma app de Meta puede firmar con el secret alterno.
+  r = await invoke({
+    httpMethod: 'POST',
+    path: '/webhook',
+    headers: { 'X-Hub-Signature-256': sign(payload, 'test_app_secret_alt') },
+    body: payload,
+  });
+  check('POST /webhook firmado con el secret ALT -> 200', r.statusCode === 200, `status=${r.statusCode}`);
 
   // 1.5 Verificación GET clásica (hub.verify_token)
   r = await invoke({
@@ -199,7 +213,11 @@ async function run() {
   check('verifyWhatsAppSignature válida -> true', Utils.verifyWhatsAppSignature(Buffer.from(body), validSig, 'secret-abc') === true);
   check('verifyWhatsAppSignature con secreto malo -> false', Utils.verifyWhatsAppSignature(Buffer.from(body), validSig, 'other-secret') === false);
   check('verifyWhatsAppSignature sin header -> false', Utils.verifyWhatsAppSignature(Buffer.from(body), null, 'secret-abc') === false);
-  check('verifyWhatsAppSignature sin secret -> true (transicional, log warning)', Utils.verifyWhatsAppSignature(Buffer.from(body), validSig, '') === true);
+  check('verifyWhatsAppSignature sin secret -> false (fail-closed)', Utils.verifyWhatsAppSignature(Buffer.from(body), validSig, '') === false);
+  check('verifyWhatsAppSignature con secret ALT en arreglo -> true',
+    Utils.verifyWhatsAppSignature(Buffer.from(body), sign(body, 'secret-alt'), ['secret-abc', 'secret-alt']) === true);
+  check('verifyWhatsAppSignature con arreglo sin secretos -> false (fail-closed)',
+    Utils.verifyWhatsAppSignature(Buffer.from(body), validSig, ['', '']) === false);
   check('safeEqual iguales -> true', Utils.safeEqual('abc', 'abc') === true);
   check('safeEqual distintos -> false', Utils.safeEqual('abc', 'abd') === false);
   check('safeEqual longitudes distintas -> false', Utils.safeEqual('abc', 'ab') === false);
@@ -344,6 +362,39 @@ async function run() {
   const fs = require('fs');
   const configSource = fs.readFileSync(pathJoin(ROOT, 'config.js'), 'utf8');
   check('config.js sin fallback hardcodeado de MAKE_WEBHOOK_URL', !configSource.includes('hook.us2.make.com'));
+
+  console.log('\n=== 8) ENDPOINT INTERNO /user/verify-code ===');
+  const verifyCodeEvent = { httpMethod: 'POST', path: '/user/verify-code', body: JSON.stringify({ user: { phone: '573001234567', code: '123456' } }) };
+
+  delete process.env.INTERNAL_SERVICE_SECRET;
+  r = await invoke({ ...verifyCodeEvent, headers: { 'x-internal-secret': 'cualquiera' } });
+  check('/user/verify-code sin INTERNAL_SERVICE_SECRET configurado -> 401 (fail-closed)', r.statusCode === 401, `status=${r.statusCode}`);
+
+  process.env.INTERNAL_SERVICE_SECRET = 'test_internal_secret';
+  try {
+    r = await invoke({ ...verifyCodeEvent, headers: { 'x-internal-secret': 'incorrecto' } });
+    check('/user/verify-code con secret inválido -> 401', r.statusCode === 401, `status=${r.statusCode}`);
+
+    r = await invoke({ ...verifyCodeEvent, headers: { 'x-internal-secret': 'test_internal_secret' } });
+    check('/user/verify-code con secret válido -> 200', r.statusCode === 200, `status=${r.statusCode}`);
+  } finally {
+    delete process.env.INTERNAL_SERVICE_SECRET;
+  }
+
+  console.log('\n=== 9) CONFIGURACIÓN REAL (.env) — el webhook sigue funcionando ===');
+  const envPath = pathJoin(ROOT, '.env');
+  if (fs.existsSync(envPath)) {
+    const realEnv = require('dotenv').parse(fs.readFileSync(envPath));
+    check('WHATSAPP_APP_SECRET configurado en .env (no vacío)', !!realEnv.WHATSAPP_APP_SECRET);
+    check('firma hecha con el App Secret real del .env -> true',
+      Utils.verifyWhatsAppSignature(Buffer.from(body), sign(body, realEnv.WHATSAPP_APP_SECRET), realEnv.WHATSAPP_APP_SECRET) === true);
+    check('WHATSAPP_APP_SECRET_ALT configurado en .env (no vacío)', !!realEnv.WHATSAPP_APP_SECRET_ALT);
+    check('firma hecha con el App Secret ALT real del .env -> true',
+      Utils.verifyWhatsAppSignature(Buffer.from(body), sign(body, realEnv.WHATSAPP_APP_SECRET_ALT), [realEnv.WHATSAPP_APP_SECRET, realEnv.WHATSAPP_APP_SECRET_ALT]) === true);
+    check('INTERNAL_SERVICE_SECRET configurado en .env (no vacío)', !!realEnv.INTERNAL_SERVICE_SECRET);
+  } else {
+    console.log('  (.env ausente: se omite la comprobación de configuración real)');
+  }
 
   console.log(`\n========================================`);
   console.log(`RESULTADO: ${passed} OK, ${failed} FALLOS`);
