@@ -1,0 +1,63 @@
+service: reservaya-whatsapp
+frameworkVersion: ">=4.0.0"
+
+provider:
+  name: aws
+  runtime: nodejs22.x
+  region: us-east-1
+  stage: ${opt:stage, 'prod'}
+  environment:
+    NODE_ENV: production
+    BACK_API_BASE_URL: ${env:BACK_API_BASE_URL}
+    FRONT_BASE_URL: ${env:FRONT_BASE_URL, 'https://djbfmoum5t7ct.cloudfront.net'}
+    WHATSAPP_PHONE_NUMBER_ID: ${env:WHATSAPP_PHONE_NUMBER_ID}
+    WHATSAPP_ACCESS_TOKEN: ${env:WHATSAPP_ACCESS_TOKEN}
+    WHATSAPP_VERIFY_TOKEN: ${env:WHATSAPP_VERIFY_TOKEN}
+    # Fail-closed: sin fallback vacío. Soporta rotación con dos secretos de la misma app de Meta.
+    WHATSAPP_APP_SECRET: ${env:WHATSAPP_APP_SECRET}
+    WHATSAPP_APP_SECRET_ALT: ${env:WHATSAPP_APP_SECRET_ALT, ''}
+    WHATSAPP_BOT_SECRET: ${env:WHATSAPP_BOT_SECRET}
+    INTERNAL_SERVICE_SECRET: ${env:INTERNAL_SERVICE_SECRET}
+    SQS_QUEUE_URL: ${env:SQS_QUEUE_URL}
+    GROQ_API_KEY: ${env:GROQ_API_KEY}
+    GROQ_MODEL: ${env:GROQ_MODEL, 'llama-3.3-70b-versatile'}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - sqs:SendMessage
+            - sqs:ReceiveMessage
+            - sqs:DeleteMessage
+            - sqs:GetQueueAttributes
+          Resource: ${env:SQS_QUEUE_ARN, '*'}
+
+functions:
+  api:
+    handler: dist-lambda/lambda.httpHandler
+    events:
+      - httpApi: "*"
+    timeout: 15
+    memorySize: 256
+
+  sqs-worker:
+    handler: dist-lambda/lambda.sqsWorkerHandler
+    timeout: 30
+    memorySize: 256
+    events:
+      - sqs:
+          arn: ${env:SQS_QUEUE_ARN}
+          batchSize: 5
+          functionResponseType: ReportBatchItemFailures
+
+  expire-conversations:
+    handler: dist-lambda/lambda.expireConversationsHandler
+    timeout: 30
+    memorySize: 256
+    events:
+      - schedule: rate(5 minutes)
+
+package:
+  patterns:
+    - '!**'
+    - 'dist-lambda/**'

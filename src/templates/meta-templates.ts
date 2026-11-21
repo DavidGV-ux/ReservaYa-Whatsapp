@@ -2,7 +2,11 @@
  * B-06: Soporte de plantillas aprobadas de Meta (WABA) en español (texto + HTML + payload business-initiated).
  */
 export interface BusinessTemplatePayload {
-  templateName: 'reservaya_bienvenida_es' | 'reservaya_recibo_pago_es' | 'reservaya_recordatorio_cita_es';
+  templateName:
+    | 'reservaya_bienvenida_es'
+    | 'reservaya_recibo_pago_es'
+    | 'reservaya_recordatorio_cita_es'
+    | 'reservaya_codigo_verificacion_es';
   languageCode: 'es';
   text: string;
   html: string;
@@ -105,6 +109,100 @@ export function buildMetaPaymentReceiptTemplate(input: {
               { type: 'text', text: input.dateTimeFormatted },
               { type: 'text', text: input.paymentReference },
               { type: 'text', text: input.paidAmountFormatted },
+            ],
+          },
+        ],
+      },
+    },
+  };
+}
+
+export function buildMetaReminderTemplate(input: {
+  toPhone: string;
+  clientName: string;
+  tenantName: string;
+  serviceName: string;
+  dateTimeFormatted: string;
+}): BusinessTemplatePayload {
+  const cleanPhone = input.toPhone.replace(/\D/g, '');
+  const text =
+    `⏰ Recordatorio: Hola ${input.clientName}, tienes una cita programada en ${input.tenantName} ` +
+    `para "${input.serviceName}" el ${input.dateTimeFormatted}. ¡Te esperamos!`;
+  const html =
+    `<!DOCTYPE html><html lang="es"><body>` +
+    `<h2>⏰ Recordatorio de Cita — ${input.tenantName}</h2>` +
+    `<p>Hola <strong>${input.clientName}</strong>, recuerda tu cita de <strong>${input.serviceName}</strong> el <strong>${input.dateTimeFormatted}</strong>.</p>` +
+    `</body></html>`;
+
+  return {
+    templateName: 'reservaya_recordatorio_cita_es',
+    languageCode: 'es',
+    text,
+    html,
+    metaApiBody: {
+      messaging_product: 'whatsapp',
+      recipient_type: 'individual',
+      to: cleanPhone,
+      type: 'template',
+      template: {
+        name: 'reservaya_recordatorio_cita_es',
+        language: { code: 'es' },
+        components: [
+          {
+            type: 'body',
+            parameters: [
+              { type: 'text', text: input.clientName },
+              { type: 'text', text: input.tenantName },
+              { type: 'text', text: input.serviceName },
+              { type: 'text', text: input.dateTimeFormatted },
+            ],
+          },
+        ],
+      },
+    },
+  };
+}
+
+/**
+ * B-06 / PR #1 (9e21024): Plantilla OTP de verificación de teléfono en español (código de 6 dígitos).
+ */
+export function buildMetaVerificationCodeTemplate(input: {
+  toPhone: string;
+  code: string;
+  clientName?: string;
+}): BusinessTemplatePayload {
+  const cleanPhone = input.toPhone.replace(/\D/g, '');
+  const greeting = input.clientName ? `Hola *${input.clientName}* 👋\n` : 'Hola 👋\n';
+  const text =
+    `${greeting}` +
+    `Tu código de verificación de *ReservaYa* es: *${input.code}*\n\n` +
+    `Ingrésalo en la pantalla de registro para validar tu número. El código vence en 10 minutos. Si no lo solicitaste, ignora este mensaje.`;
+  const html =
+    `<!DOCTYPE html><html lang="es"><body>` +
+    `<h2>Código de Verificación — ReservaYa</h2>` +
+    `<p>${input.clientName ? `Hola <strong>${input.clientName}</strong>,` : 'Hola,'} tu código de verificación es: <code>${input.code}</code>.</p>` +
+    `<p>Este código vence en 10 minutos.</p>` +
+    `</body></html>`;
+
+  return {
+    templateName: 'reservaya_codigo_verificacion_es',
+    languageCode: 'es',
+    text,
+    html,
+    metaApiBody: {
+      messaging_product: 'whatsapp',
+      recipient_type: 'individual',
+      to: cleanPhone,
+      type: 'template',
+      template: {
+        name: 'reservaya_codigo_verificacion_es',
+        language: { code: 'es' },
+        components: [
+          {
+            type: 'body',
+            parameters: [
+              { type: 'text', text: input.clientName ?? 'Usuario' },
+              { type: 'text', text: input.code },
             ],
           },
         ],

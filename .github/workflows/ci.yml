@@ -24,5 +24,8 @@ jobs:
       - name: Verificar sintaxis y tipos (Lint / Typecheck)
         run: npm run typecheck
 
+      - name: Compilar bundles de producción (Node y AWS Lambda)
+        run: npm run build && npm run build:lambda
+
       - name: Ejecutar pruebas unitarias y de pipeline
         run: npm test

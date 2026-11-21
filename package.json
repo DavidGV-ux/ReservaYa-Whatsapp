@@ -3,25 +3,32 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Servicio conversacional de WhatsApp IA para ReservaYa (Meta Webhook -> SQS -> Groq/Gemini AI -> Back-Reserva-Ya)",
+  "description": "Servicio conversacional de WhatsApp IA para ReservaYa (Meta Webhook -> SQS -> Groq AI -> Back-Reserva-Ya)",
   "engines": {
     "node": ">=20"
   },
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "start": "tsx src/server.ts",
+    "start": "node dist/server.js",
+    "build": "esbuild src/server.ts --bundle --platform=node --format=esm --target=node22 --packages=external --outfile=dist/server.js",
+    "build:lambda": "esbuild src/lambda.ts --bundle --platform=node --format=cjs --target=node22 --outfile=dist-lambda/lambda.cjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
+    "@aws-sdk/client-sqs": "^3.1175.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "serverless-http": "^4.0.0",
     "zod": "^4.6.1"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
     "@types/node": "^22.20.2",
+    "@types/supertest": "^7.2.1",
+    "esbuild": "^0.28.2",
+    "supertest": "^7.3.2",
     "tsx": "^4.23.13",
     "typescript": "^7.0.2",
     "vitest": "^5.0.0"

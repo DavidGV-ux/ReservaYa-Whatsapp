@@ -1,6 +1,22 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
 /**
+ * Comparación en tiempo constante para secretos y firmas criptográficas
+ * (mitiga ataques de timing — auditoría de seguridad 9e21024).
+ */
+export function safeEqual(a: string, b: string): boolean {
+  if (!a || !b) {
+    return false;
+  }
+  const bufA = Buffer.from(a, 'utf8');
+  const bufB = Buffer.from(b, 'utf8');
+  if (bufA.length !== bufB.length) {
+    return false;
+  }
+  return timingSafeEqual(bufA, bufB);
+}
+
+/**
  * B-04 / RNF-27: Calcula la firma HMAC-SHA256 de un payload de Meta en formato `sha256=<hex>`.
  */
 export function signMetaPayload(rawBody: string | Buffer, appSecret: string): string {
@@ -9,26 +25,35 @@ export function signMetaPayload(rawBody: string | Buffer, appSecret: string): st
 }
 
 /**
- * B-04 / RNF-27: Valida de forma segura en tiempo constante el encabezado `X-Hub-Signature-256`
- * enviado por Meta WhatsApp Cloud API.
+ * B-04 / RNF-27 / PR #1 (9e21024): Valida de forma segura en tiempo constante el encabezado
+ * `X-Hub-Signature-256` enviado por Meta WhatsApp Cloud API.
+ *
+ * - Fail-closed: si no hay ningún secreto válido configurado, rechaza (`false`).
+ * - Soporta rotación de doble secreto (`WHATSAPP_APP_SECRET` y `WHATSAPP_APP_SECRET_ALT`)
+ *   aceptando `string | string[]`.
  */
 export function verifyMetaSignature(input: {
   rawBody: string | Buffer | undefined;
   signatureHeader: string | undefined;
-  appSecret: string;
+  appSecret: string | string[];
 }): boolean {
   const { rawBody, signatureHeader, appSecret } = input;
-  if (!rawBody || !signatureHeader || !appSecret) {
+  const secrets = (Array.isArray(appSecret) ? appSecret : [appSecret])
+    .map((s) => (typeof s === 'string' ? s.trim() : ''))
+    .filter((s) => s.length > 0);
+
+  if (!rawBody || !signatureHeader || secrets.length === 0) {
     return false;
   }
   if (!signatureHeader.startsWith('sha256=')) {
     return false;
   }
-  const expected = signMetaPayload(rawBody, appSecret);
-  const actualBuf = Buffer.from(signatureHeader, 'utf8');
-  const expectedBuf = Buffer.from(expected, 'utf8');
-  if (actualBuf.length !== expectedBuf.length) {
-    return false;
+
+  for (const secret of secrets) {
+    const expected = signMetaPayload(rawBody, secret);
+    if (safeEqual(signatureHeader.trim(), expected)) {
+      return true;
+    }
   }
-  return timingSafeEqual(actualBuf, expectedBuf);
+  return false;
 }
