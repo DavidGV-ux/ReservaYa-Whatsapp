@@ -202,10 +202,12 @@ static saveLogToFile(level, message, data = null) {
    * @param {string} secret - WhatsApp App Secret
    * @returns {boolean}
    */
-  static verifyWhatsAppSignature(rawBody, signatureHeader, secret) {
-    if (!secret) {
-      this.log('error', 'WHATSAPP_APP_SECRET no configurado. La firma del webhook NO se está verificando. Configura el App Secret de Meta en produccion para activar la validacion.');
-      return true; // Transicional: si no hay secret, no bloquear
+  static verifyWhatsAppSignature(rawBody, signatureHeader, secrets) {
+    const list = Array.isArray(secrets) ? secrets : [secrets];
+    const available = list.filter(Boolean);
+    if (!available.length) {
+      this.log('error', 'WHATSAPP_APP_SECRET no configurado. Webhook rechazado (fail-closed). Configura el App Secret de Meta.');
+      return false;
     }
 
     if (!signatureHeader || typeof signatureHeader !== 'string') {
@@ -221,14 +223,14 @@ static saveLogToFile(level, message, data = null) {
     const provided = signatureHeader.slice('sha256='.length).trim();
 
     // IMPORTANTE: el body debe ser el crudo (no modificado) tal como llego.
+    // Ambos bots comparten la app de Meta; RY rota entre dos secrets y reenvía
+    // la firma original, así que FYN debe aceptar cualquiera de los dos.
     const bodyBuffer = Buffer.isBuffer(rawBody) ? rawBody : Buffer.from(rawBody, 'utf8');
-    const expected = crypto.createHmac('sha256', secret).update(bodyBuffer).digest('hex');
-
-    try {
-      return this.safeEqual(expected, provided);
-    } catch (error) {
-      return false;
+    for (const secret of available) {
+      const expected = crypto.createHmac('sha256', secret).update(bodyBuffer).digest('hex');
+      if (this.safeEqual(expected, provided)) return true;
     }
+    return false;
   }
 
   /**

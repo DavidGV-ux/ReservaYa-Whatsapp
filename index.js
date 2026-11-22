@@ -11,7 +11,7 @@
  *
  * Seguridad (verificado por tests en tests/security-verification.js):
  *   • CORS por middleware (NO en API Gateway): origen desconocido → sin ACAO.
- *   • Webhook: firma HMAC de Meta. ⚠️ FAIL-OPEN transicional si WHATSAPP_APP_SECRET está vacío.
+ *   • Webhook: firma HMAC de Meta; fail-closed si WHATSAPP_APP_SECRET está vacío.
  *   • /user/*: JWT HS256 offline (SUPABASE_JWT_SECRET). Fail-closed sin secret.
  *   • requireOwnData: 403 si el token pide datos de OTRO teléfono (no hay devolución masiva).
  *   • /admin/*: ADMIN_SECRET (fail-closed).
@@ -116,7 +116,7 @@ app.post("/webhook", async (req, res) => {
     // Previene que terceros simulen mensajes, envíen mensajes a números arbitrarios
     // o gasten créditos de IA.
     const signature = req.headers['x-hub-signature-256'];
-    if (!Utils.verifyWhatsAppSignature(req.rawBody, signature, config.whatsapp.appSecret)) {
+    if (!Utils.verifyWhatsAppSignature(req.rawBody, signature, [config.whatsapp.appSecret, config.whatsapp.appSecretAlt])) {
       Utils.log("warn", `[${trackingId}] ⛔ Firma de webhook inválida o faltante`);
       return res.sendStatus(403);
     }
@@ -1933,7 +1933,7 @@ app.get("/budget-test/:phone", requireAdmin, async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Error en budget-test:', error);
-    res.status(500).json({ success: false, error: error.message, stack: error.stack });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -2084,6 +2084,47 @@ app.post("/admin/broadcast/send", async (req, res) => {
   } catch (error) {
     Utils.handleError(error, `[${trackingId}] Error crítico en broadcast`);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Endpoint interno: enviar el código de verificación al usuario (usado por el
+// backend de ReservaYa cuando el canal activo del envío es FYN). Acepta el
+// mismo envelope interno { type, user } que usa el bot de FYN.
+// Compatibilidad: ambos bots deben desplegarse juntos con la misma
+// INTERNAL_SERVICE_SECRET; el reenvío de webhooks conserva X-Hub-Signature-256.
+const requireInternalSecret = (req, res, next) => {
+  const expected = process.env.INTERNAL_SERVICE_SECRET;
+  const provided = req.get('x-internal-secret');
+  if (!expected || !provided || !Utils.safeEqual(provided, expected)) {
+    return res.status(401).json({ error: 'No autorizado' });
+  }
+  next();
+};
+const limiterVerifyCode = Utils.createRateLimiter({ windowMs: 60 * 1000, max: 10 });
+app.post("/user/verify-code", requireInternalSecret, limiterVerifyCode, async (req, res) => {
+  const trackingId = Utils.generateTrackingId();
+  try {
+    const body = req.body || {};
+    const user = body.user || body;
+    const phone = user?.phone;
+    const code = user?.code;
+    const name = user?.name;
+
+    if (!phone || !/^\d{6}$/.test(String(code || ""))) {
+      return res.status(400).json({ ok: false, error: "invalid payload" });
+    }
+
+    const message =
+      `${name ? `Hola *${name}* 👋\n` : "Hola 👋\n"}` +
+      `Tu código de verificación de *ReservaYa* es: *${code}*\n\n` +
+      `Ingrésalo en la pantalla de registro para validar tu número. El código vence en 10 minutos. Si no lo solicitaste, ignora este mensaje.`;
+
+    const sendResult = await whatsappService.sendMessage(phone, message);
+    Utils.log("info", `[${trackingId}] ✅ user.verify-code enviado vía FYN a ${phone}`);
+    return res.json({ ok: true, result: sendResult });
+  } catch (error) {
+    Utils.handleError(error, `[${trackingId}] Error enviando user.verify-code`);
+    return res.status(500).json({ ok: false, error: error.message });
   }
 });
 

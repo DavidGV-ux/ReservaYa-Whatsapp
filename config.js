@@ -17,6 +17,8 @@ module.exports = {
     // App Secret de Meta para verificar la firma X-Hub-Signature-256 del webhook
     // Se obtiene en Meta Developers > Tu App > App settings > Basic > App secret
     appSecret: process.env.WHATSAPP_APP_SECRET || "",
+    // Segundo secret de la misma app de Meta durante rotación (igual que en RY).
+    appSecretAlt: process.env.WHATSAPP_APP_SECRET_ALT || "",
   },
 
   // Admin
